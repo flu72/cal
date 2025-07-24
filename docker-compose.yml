@@ -1,0 +1,87 @@
+# Docker Compose para Cal.com - Build Personalizado Final (AxisNode)
+# Configuración optimizada para resolver problemas de build y enrutamiento
+
+services:
+  cal:
+    build:
+      context: /opt/axisnode-svs/cal-build
+      dockerfile: Dockerfile # ¡CONFIRMADO! Si tu archivo se llama solo Dockerfile dentro del context
+      args:
+        NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+        CALENDSO_ENCRYPTION_KEY: ${CALENDSO_ENCRYPTION_KEY}
+        NEXTAUTH_URL: ${NEXTAUTH_URL}
+        SITE_URL: ${SITE_URL}
+        NEXT_PUBLIC_WEBAPP_URL: ${NEXT_PUBLIC_WEBAPP_URL}
+    image: axisnode/cal:latest
+    container_name: cal
+    restart: unless-stopped
+    
+    # Variables de entorno desde archivo
+    env_file:
+      - ../env/cal.env
+    
+    # Labels de Traefik COMPLETOS y CORREGIDOS
+    labels:
+      # Habilitar Traefik
+      - "traefik.enable=true"
+      
+      # Especificar red Docker (axisnode_net como especificó el usuario)
+      - "traefik.docker.network=axisnode_net"
+      
+      # Router HTTPS principal
+      - "traefik.http.routers.cal.rule=Host(`cal.axisnode.site`)"
+      - "traefik.http.routers.cal.entrypoints=websecure"
+      - "traefik.http.routers.cal.tls=true"
+      - "traefik.http.routers.cal.tls.certresolver=cloudflare"
+      - "traefik.http.routers.cal.middlewares=cal-headers"
+      
+      # Router HTTP (redirección)
+      - "traefik.http.routers.cal-http.rule=Host(`cal.axisnode.site`)"
+      - "traefik.http.routers.cal-http.entrypoints=web"
+      - "traefik.http.routers.cal-http.middlewares=redirect-to-https"
+      
+      # Servicio (CRÍTICO: especificar puerto)
+      - "traefik.http.services.cal.loadbalancer.server.port=3000"
+      
+      # Middlewares
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+      
+      # Headers CRÍTICOS para NextAuth
+      - "traefik.http.middlewares.cal-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.cal-headers.headers.customrequestheaders.X-Forwarded-Host=cal.axisnode.site"
+      - "traefik.http.middlewares.cal-headers.headers.customrequestheaders.X-Forwarded-Port=443"
+      
+      # Headers de seguridad adicionales
+      - "traefik.http.middlewares.cal-headers.headers.customresponseheaders.X-Frame-Options=SAMEORIGIN"
+      - "traefik.http.middlewares.cal-headers.headers.customresponseheaders.X-Content-Type-Options=nosniff"
+    
+    # Red (axisnode_net como especificó el usuario)
+    networks:
+      - axisnode_net
+    
+    # Volúmenes para persistencia
+    volumes:
+      - ../logs/cal:/app/logs
+      - cal_uploads:/app/public/uploads
+      - yarn_cache:/usr/local/share/.cache/yarn/v6 # NUEVA LÍNEA: Persiste la caché de Yarn
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# Red externa (debe existir previamente) - axisnode_net
+networks:
+  axisnode_net:
+    external: true
+
+# Volúmenes
+volumes:
+  cal_uploads:
+    driver: local
+  yarn_cache: # <--- DEBES AÑADIR ESTAS DOS LÍNEAS
+    driver: local
