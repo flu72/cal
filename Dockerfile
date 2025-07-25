@@ -36,8 +36,12 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y openssl ca-certificates curl && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /work/apps/web/.next ./.next
 COPY --from=builder /work/apps/web/public ./public
-COPY --from=builder /work/apps/web/package.json ./package.json
-COPY --from=builder /work/apps/web/yarn.lock ./yarn.lock
+# CAMBIO IMPORTANTE: Copiar package.json y yarn.lock de la raíz del monorepo a /app del runner
+# Ya que la aplicación web probablemente depende del yarn.lock raíz para sus dependencias
+COPY --from=builder /work/package.json ./package.json
+COPY --from=builder /work/yarn.lock ./yarn.lock
+# ELIMINADO: COPY --from=builder /work/apps/web/package.json ./package.json  <-- NO EXISTEN AQUÍ
+# ELIMINADO: COPY --from=builder /work/apps/web/yarn.lock ./yarn.lock      <-- NO EXISTEN AQUÍ
 COPY --from=builder /work/node_modules ./node_modules
 COPY --from=builder /work/apps/web/node_modules ./apps/web/node_modules
 COPY --from=builder /work/apps/web/app ./app
