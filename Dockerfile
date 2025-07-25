@@ -45,7 +45,6 @@ COPY --from=builder /work/apps/web/next.config.js ./next.config.js
 COPY --from=builder /work/apps/web/tsconfig.json ./tsconfig.json
 COPY --from=builder /work/apps/web/components ./components
 COPY --from=builder /work/apps/web/lib ./lib
-COPY --from=builder /work/apps/web/types ./types
 COPY --from=builder /work/packages ./packages
 EXPOSE 3000
 CMD ["yarn", "start"]
