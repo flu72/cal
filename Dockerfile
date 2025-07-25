@@ -7,7 +7,7 @@ COPY package.json yarn.lock ./
 COPY . .
 RUN sed -i '/generator client {/,/}/ s/provider = "prisma-client-js"/provider = "prisma-client-js"\n  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]/' packages/prisma/schema.prisma
 RUN yarn install --immutable --network-timeout 600000
-RUN cd packages/prisma && npx prisma generate --schema=./schema.prisma --no-engine && cd ../ comunidade
+RUN cd packages/prisma && npx prisma generate --schema=./schema.prisma --no-engine && cd ../..
 RUN cd packages/trpc && NODE_OPTIONS="--max-old-space-size=10240" yarn build && cd ../..
 RUN echo "Contenido de /work/apps/web/node_modules/ antes de yarn build:"
 RUN ls -la /work/apps/web/node_modules/ || true
@@ -36,8 +36,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y openssl ca-certificates curl && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /work/apps/web/.next ./.next
 COPY --from=builder /work/apps/web/public ./public
-COPY --from=builder /work/package.json ./package.json
-COPY --from=builder /work/yarn.lock ./yarn.lock
+COPY --from=builder /work/apps/web/package.json ./package.json
+COPY --from=builder /work/apps/web/yarn.lock ./yarn.lock
 COPY --from=builder /work/node_modules ./node_modules
 COPY --from=builder /work/apps/web/node_modules ./apps/web/node_modules
 COPY --from=builder /work/apps/web/app ./app
