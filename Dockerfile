@@ -52,8 +52,6 @@ RUN yarn install --immutable --network-timeout 600000
 # Esta línea debe ir DESPUÉS de que el schema haya sido modificado y las dependencias instaladas.
 RUN cd packages/prisma && npx prisma generate --schema=./schema.prisma --no-engine && cd ../..
 
-# --- FIN: Secuencia de copia de archivos y dependencias para monorepo ---
-
 # --- NUEVO PASO: Construir paquetes internos para generar tipos y artefactos ---
 # Esto es crucial para que el compilador de TypeScript encuentre los módulos internos.
 # AJUSTE DE MEMORIA: 10240MB = 10GB para el build de trpc.
