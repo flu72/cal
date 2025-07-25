@@ -57,13 +57,6 @@ RUN cd packages/prisma && npx prisma generate --schema=./schema.prisma --no-engi
 # AJUSTE DE MEMORIA: 10240MB = 10GB para el build de trpc.
 RUN cd packages/trpc && NODE_OPTIONS="--max-old-space-size=10240" yarn build && cd ../..
 
-# --- INICIO DEPURACIÓN: Verificar node_modules antes del build (Se pueden quitar después) ---
-RUN echo "Contenido de /work/apps/web/node_modules/ antes de yarn build:"
-RUN ls -la /work/apps/web/node_modules/ || true
-RUN echo "Contenido de /work/node_modules/ antes de yarn build:"
-RUN ls -la /work/node_modules/ || true
-# --- FIN DEPURACIÓN ---
-
 # 🚨 Variables necesarias ANTES del build (incluyendo NEXT_PUBLIC_WEBAPP_URL)
 ARG NEXTAUTH_SECRET
 ARG CALENDSO_ENCRYPTION_KEY
@@ -92,11 +85,13 @@ RUN NEXTAUTH_SECRET="${NEXTAUTH_SECRET}" \
     NEXT_PUBLIC_WEBAPP_URL="${NEXT_PUBLIC_WEBAPP_URL}" \
     yarn build
 
-# --- DIAGNÓSTICO FINAL DEL BUILDER ---
-# Este comando es CLAVE para depurar. Mostrará el contenido de /work/packages/ antes de pasar al runner.
-RUN echo "Contenido de /work/packages/ en la etapa builder (DIAGNÓSTICO):"
+# --- INICIO DEPURACIÓN AVANZADA (Builder Stage) ---
+# Estos comandos listan el contenido de los directorios problemáticos EN LA ETAPA BUILDER
+RUN echo "Contenido de /work/packages/ en la etapa BUILDER (DIAGNÓSTICO):"
 RUN ls -laR /work/packages/ || true
-# --- FIN DIAGNÓSTICO ---
+RUN echo "Contenido de /work/apps/web/types/ en la etapa BUILDER (DIAGNÓSTICO):"
+RUN ls -laR /work/apps/web/types/ || true
+# --- FIN DEPURACIÓN AVANZADA (Builder Stage) ---
 
 
 # =========================================================================
@@ -126,8 +121,6 @@ COPY --from=builder /work/yarn.lock ./yarn.lock
 # Mantenemos solo las copias de los node_modules principales que realmente existen
 COPY --from=builder /work/node_modules ./node_modules
 COPY --from=builder /work/apps/web/node_modules ./apps/web/node_modules
-# Eliminamos todas las copias de node_modules de los subpaquetes que estaban dando error "not found"
-
 
 # Copiar el resto de la aplicación (solo lo necesario para el runtime)
 # Copia solo los archivos de apps/web/app ya que es el punto de entrada de Next.js
