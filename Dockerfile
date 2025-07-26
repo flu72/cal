@@ -5,15 +5,26 @@ RUN apt-get update && apt-get install -y openssl ca-certificates git python3 mak
 RUN corepack enable
 COPY package.json yarn.lock ./
 COPY . .
+
+# Eliminar el caché para asegurar una instalación limpia
+RUN yarn cache clean --all
+
+# === CAMBIO CLAVE AQUÍ: Forzar Yarn a usar el modo node_modules ===
+# Esto se hace creando un archivo .yarnrc.yml temporal en el builder
+# para configurar nodeLinker a 'node-modules'. Esto sobrescribe cualquier
+# configuración en el repositorio si el objetivo es simplificar el Dockerfile.
+RUN echo "nodeLinker: node-modules" > ./.yarnrc.yml
+# =================================================================
+
 RUN sed -i '/generator client {/,/}/ s/provider = "prisma-client-js"/provider = "prisma-client-js"\n  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]/' packages/prisma/schema.prisma
 RUN yarn install --immutable --network-timeout 600000
 
-# === DIAGNÓSTICO CRÍTICO: Verificar si .pnp.cjs y .yarn existen después de yarn install ===
-RUN echo "Contenido de /work/ después de yarn install (DIAGNÓSTICO CRÍTICO):"
-RUN ls -la /work/ || true
-RUN echo "Contenido de /work/.yarn/ después de yarn install (DIAGNÓSTICO CRÍTICO):"
-RUN ls -la /work/.yarn/ || true
-# =========================================================================================
+# === Eliminamos los diagnósticos de .pnp.cjs ya que no lo esperamos ahora ===
+# RUN echo "Contenido de /work/ después de yarn install (DIAGNÓSTICO CRÍTICO):"
+# RUN ls -la /work/ || true
+# RUN echo "Contenido de /work/.yarn/ después de yarn install (DIAGNÓSTICO CRÍTICO):"
+# RUN ls -la /work/.yarn/ || true
+# ============================================================================
 
 RUN cd packages/prisma && npx prisma generate --schema=./schema.prisma --no-engine && cd ../..
 RUN cd packages/trpc && NODE_OPTIONS="--max-old-space-size=10240" yarn build && cd ../..
@@ -41,12 +52,15 @@ RUN ls -laR /work/apps/web/types/ || true
 
 FROM node:18-slim as runner
 WORKDIR /app
-RUN corepack enable
+RUN corepack enable # Mantener por si acaso, aunque con node_modules puede ser menos crítico
 RUN apt-get update && apt-get install -y openssl ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
-# Copiar los archivos de configuración de Yarn Berry de la raíz del monorepo
-COPY --from=builder /work/.yarn ./.yarn
-COPY --from=builder /work/.pnp.cjs ./.pnp.cjs
+# === CAMBIO CLAVE AQUÍ: Quitamos .yarn y .pnp.cjs del runner si forzamos node_modules ===
+# Ya no los necesitamos si estamos usando node_modules tradicional
+# COPY --from=builder /work/.yarn ./.yarn
+# COPY --from=builder /work/.pnp.cjs ./.pnp.cjs
+# ======================================================================================
+
 COPY --from=builder /work/package.json ./package.json
 COPY --from=builder /work/yarn.lock ./yarn.lock
 
@@ -59,7 +73,7 @@ COPY --from=builder /work/apps/web/tsconfig.json ./tsconfig.json
 COPY --from=builder /work/apps/web/components ./components
 COPY --from=builder /work/apps/web/lib ./lib
 
-# Copiar las carpetas node_modules (si existen)
+# Aseguramos que los node_modules se copien correctamente
 COPY --from=builder /work/node_modules ./node_modules
 COPY --from=builder /work/apps/web/node_modules ./apps/web/node_modules
 
