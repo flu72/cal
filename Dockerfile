@@ -35,17 +35,28 @@ FROM node:18-slim as runner
 WORKDIR /app
 RUN corepack enable # <--- ¡ESTA ES LA LÍNEA CRÍTICA AÑADIDA!
 RUN apt-get update && apt-get install -y openssl ca-certificates curl && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /work/apps/web/.next ./.next
-COPY --from=builder /work/apps/web/public ./public
+
+# Copiar los archivos de configuración de Yarn Berry de la raíz del monorepo
+COPY --from=builder /work/.yarn ./.yarn
+COPY --from=builder /work/.pnp.cjs ./.pnp.cjs # Corregido para que copie a /app
 COPY --from=builder /work/package.json ./package.json
 COPY --from=builder /work/yarn.lock ./yarn.lock
-COPY --from=builder /work/node_modules ./node_modules
-COPY --from=builder /work/apps/web/node_modules ./apps/web/node_modules
+
+# Copiar la salida de construcción de la aplicación web y sus recursos
+COPY --from=builder /work/apps/web/.next ./.next
+COPY --from=builder /work/apps/web/public ./public
 COPY --from=builder /work/apps/web/app ./app
 COPY --from=builder /work/apps/web/next.config.js ./next.config.js
 COPY --from=builder /work/apps/web/tsconfig.json ./tsconfig.json
 COPY --from=builder /work/apps/web/components ./components
 COPY --from=builder /work/apps/web/lib ./lib
+
+# Copiar las carpetas node_modules (aunque Yarn Berry las maneje de forma diferente, las incluimos)
+COPY --from=builder /work/node_modules ./node_modules
+COPY --from=builder /work/apps/web/node_modules ./apps/web/node_modules
+
+# Copiar el directorio 'packages' que es crucial para un monorepo de Cal.com
 COPY --from=builder /work/packages ./packages
+
 EXPOSE 3000
 CMD ["yarn", "start"]
