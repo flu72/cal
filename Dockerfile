@@ -7,6 +7,14 @@ COPY package.json yarn.lock ./
 COPY . .
 RUN sed -i '/generator client {/,/}/ s/provider = "prisma-client-js"/provider = "prisma-client-js"\n  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]/' packages/prisma/schema.prisma
 RUN yarn install --immutable --network-timeout 600000
+
+# === DIAGNÓSTICO CRÍTICO: Verificar si .pnp.cjs y .yarn existen después de yarn install ===
+RUN echo "Contenido de /work/ después de yarn install (DIAGNÓSTICO CRÍTICO):"
+RUN ls -la /work/ || true
+RUN echo "Contenido de /work/.yarn/ después de yarn install (DIAGNÓSTICO CRÍTICO):"
+RUN ls -la /work/.yarn/ || true
+# =========================================================================================
+
 RUN cd packages/prisma && npx prisma generate --schema=./schema.prisma --no-engine && cd ../..
 RUN cd packages/trpc && NODE_OPTIONS="--max-old-space-size=10240" yarn build && cd ../..
 RUN echo "Contenido de /work/apps/web/node_modules/ antes de yarn build:"
@@ -33,12 +41,12 @@ RUN ls -laR /work/apps/web/types/ || true
 
 FROM node:18-slim as runner
 WORKDIR /app
-RUN corepack enable # <--- ¡ESTA ES LA LÍNEA CRÍTICA AÑADIDA!
+RUN corepack enable
 RUN apt-get update && apt-get install -y openssl ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
 # Copiar los archivos de configuración de Yarn Berry de la raíz del monorepo
 COPY --from=builder /work/.yarn ./.yarn
-COPY --from=builder /work/.pnp.cjs ./.pnp.cjs # Corregido para que copie a /app
+COPY --from=builder /work/.pnp.cjs ./.pnp.cjs
 COPY --from=builder /work/package.json ./package.json
 COPY --from=builder /work/yarn.lock ./yarn.lock
 
@@ -51,7 +59,7 @@ COPY --from=builder /work/apps/web/tsconfig.json ./tsconfig.json
 COPY --from=builder /work/apps/web/components ./components
 COPY --from=builder /work/apps/web/lib ./lib
 
-# Copiar las carpetas node_modules (aunque Yarn Berry las maneje de forma diferente, las incluimos)
+# Copiar las carpetas node_modules (si existen)
 COPY --from=builder /work/node_modules ./node_modules
 COPY --from=builder /work/apps/web/node_modules ./apps/web/node_modules
 
