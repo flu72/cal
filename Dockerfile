@@ -65,4 +65,4 @@ COPY --from=builder /work/apps/web/public ./apps/web/public
 
 EXPOSE 3000
 
-CMD ["yarn", "workspace", "web", "start"]
+CMD ["yarn", "workspace", "calcom/web", "start"]
