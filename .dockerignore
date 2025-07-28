@@ -1,0 +1,37 @@
+# Control de versiones
+.git
+.gitignore
+
+# Dependencias y builds locales
+node_modules
+.next
+
+# Archivos de configuración sensible
+.env*
+npm-debug.log
+yarn-error.log
+
+# Archivos temporales y logs
+.DS_Store
+*.log
+*.swp
+*.swo
+*.bak
+
+# Configuraciones locales de IDE y logs
+.vscode
+.idea
+logs
+
+# Assets persistentes (mapeados por volumen, nunca copiar al build)
+uploads
+public/uploads
+
+# Monorepo / Yarn Berry cache
+.yarn/cache
+yarn.lock.backup
+
+# Otros
+coverage
+dist
+tmp
